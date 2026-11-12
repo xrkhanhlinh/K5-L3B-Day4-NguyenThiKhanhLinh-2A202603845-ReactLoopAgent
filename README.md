@@ -8,6 +8,24 @@
 
 Tài liệu đi kèm: [GUIDE.md](GUIDE.md) · [SUBMISSION.md](SUBMISSION.md) · [RUBRIC.md](RUBRIC.md) · [CHECKPOINTS.md](CHECKPOINTS.md) · [RULES.md](RULES.md)
 
+## Bài làm cá nhân
+
+Nguyễn Thị Khánh Linh · MSSV **2A202603845** · lớp **K5-L3B**.
+
+- Agent loop và kiểm tra nguồn: [agent.py](agent.py).
+- Hai báo cáo eval: [eval_before.json](eval_before.json), [eval_after.json](eval_after.json).
+- Phân tích trace, thay đổi và tình trạng đáp ứng yêu cầu nộp bài: [NOTES.md](NOTES.md).
+- Kiểm tra offline: `python -m unittest discover -s tests -v`.
+
+Để giảm số request dồn vào API, có thể đặt `$env:API_MIN_INTERVAL_SECONDS='12'`
+trong PowerShell rồi chạy eval với `--workers 1`. Khoảng chờ áp dụng chung cho
+agent và judge trong cùng tiến trình; không làm tăng quota API. API lỗi tạm thời
+được thử tối đa 4 lần, có backoff và tôn trọng `Retry-After` trong budget 60 giây
+mỗi lần chờ. `.env` và các file thử nghiệm `eval_results*.json` không được commit.
+
+Điểm tổng `null` vẫn là kết quả chưa hoàn chỉnh; không dùng trung bình tạm thay
+cho điểm toàn bộ. Xem trạng thái thực tế của hai lần chạy trong `NOTES.md`.
+
 Bạn sẽ tự viết một agent loop bằng Python. Agent dùng dữ liệu thật từ GitHub Status và Cloudflare Status để hỗ trợ điều tra sự cố, sau đó bạn dùng trace và eval để kiểm tra cách agent hoạt động.
 
 **Mục tiêu:** gọi LLM → thực thi tool → đưa kết quả trở lại LLM → lặp đến khi trả lời hoặc hết giới hạn. Thời lượng dự kiến: **4 giờ**, gồm nghỉ 10 phút. Lịch theo từng ca ở [CHECKPOINTS.md](CHECKPOINTS.md). Toàn bộ các bước trong [GUIDE.md](GUIDE.md) là nội dung của lab. Đọc thêm [RUBRIC.md](RUBRIC.md) để biết tiêu chí đánh giá.
@@ -42,7 +60,7 @@ Sau bài chính, bạn có thể mở rộng agent để điều tra **GitHub, C
 
 ## 1. Chuẩn bị
 
-- Python **3.10+**, có Internet và API key của **một** trong bốn provider.
+- Python **3.10+**, có Internet và API key của **một** trong năm provider.
 - Chọn model có hỗ trợ **tool calling**. API provider/model có thể phát sinh chi phí.
 - Không cần cài package: project dùng Python standard library.
 
@@ -61,10 +79,11 @@ Chọn cấu hình khác nếu cần:
 |---|---|---|
 | `openai` | `OPENAI_API_KEY` | Tên model OpenAI bạn được cấp quyền dùng. |
 | `gemini` | `GEMINI_API_KEY` | Tên model Gemini hỗ trợ function calling. |
+| `groq` | `GROQ_API_KEY` hoặc `API_KEY` | `openai/gpt-oss-20b`, hỗ trợ tool calling. |
 | `anthropic` | `ANTHROPIC_API_KEY` | Tên model Claude hỗ trợ tool use. |
 | `openrouter` | `OPENROUTER_API_KEY` | Model ID đầy đủ trên OpenRouter, thường có dạng provider/model. |
 
-Ví dụ chuyển sang Gemini: `export PROVIDER=gemini`, đặt `GEMINI_API_KEY` và `MODEL` phù hợp. Chọn một provider; không cần cả bốn key. File `.env.example` chỉ là mẫu: chương trình **không tự đọc `.env`**. Có thể chạy `cp .env.example .env`, điền key rồi chạy `source .env` trong mỗi terminal mới. Trên Windows, dùng Git Bash để chạy đúng các lệnh này, hoặc thay `python3` bằng `python` và đặt biến bằng `$env:TEN_BIEN='gia_tri'` trong PowerShell. Không commit key hay trace chứa dữ liệu nhạy cảm.
+Ví dụ chuyển sang Gemini: đặt `PROVIDER=gemini`, `GEMINI_API_KEY` và `MODEL` phù hợp. Chọn một provider; không cần cả bốn key. Chương trình **tự đọc `.env`** trong thư mục project; biến đã đặt trong terminal được ưu tiên. Với endpoint tương thích OpenAI, dùng `API_KEY`, `API_ENDPOINT` (URL gốc hoặc URL kết thúc bằng `/chat/completions`) và `API_MODEL`; provider mặc định là `openai`. Trên PowerShell, dùng `python` thay cho `python3`. Không commit key hay trace chứa dữ liệu nhạy cảm.
 
 Adapter dùng Chat Completions cho OpenAI, Gemini compatibility và OpenRouter; Anthropic dùng Messages API. Nó phục vụ **tool calling cơ bản**, không bao phủ mọi tính năng đặc thù model như extended thinking. Khi provider từ chối model hoặc hết quota, kiểm tra quyền truy cập, model ID và key. Xem tài liệu: [OpenAI](https://developers.openai.com/api/docs/guides/function-calling), [Gemini](https://ai.google.dev/gemini-api/docs/openai), [Anthropic](https://platform.claude.com/docs/en/agents-and-tools/tool-use/how-tool-use-works), [OpenRouter](https://openrouter.ai/docs/guides/features/tool-calling).
 

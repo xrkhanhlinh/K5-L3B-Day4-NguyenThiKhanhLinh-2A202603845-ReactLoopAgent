@@ -3,7 +3,7 @@ import json
 import os
 import sys
 from agent import run_agent
-from providers import Provider
+from providers import CONFIG, Provider
 from status_tools import StatusTools
 from bonus.tools import BonusTools
 
@@ -15,11 +15,14 @@ def run(question, mode, provider_name, model, max_steps, fail=False, bonus=False
 
 
 def main():
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8')
     p = argparse.ArgumentParser(description='Chạy status agent')
     p.add_argument('question', help='Câu hỏi cho agent')
     p.add_argument('--bonus', action='store_true', help='Dùng bộ tools bonus')
     p.add_argument('--mode', choices=['snapshot', 'live'], default='snapshot')
-    p.add_argument('--provider', choices=['openai', 'gemini', 'anthropic', 'openrouter'], default=os.getenv('PROVIDER', 'openai'))
+    p.add_argument('--provider', choices=list(CONFIG), default=os.getenv('PROVIDER', 'openai'))
     p.add_argument('--model', default=os.getenv('MODEL'))
     p.add_argument('--max-steps', type=int, default=6)
     args = p.parse_args()
